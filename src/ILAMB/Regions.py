@@ -37,12 +37,12 @@ class Regions(object):
         lats : array-like of size 2
             the minimum and maximum latitudes defining the region on the interval (-90,90)
         lons : array-like of size 2
-            the minimum and maximum longitudes defining the region on the interval (-180,180)
+            the minimum and maximum longitudes defining the region on the interval (0,360)
         source : str, optional
             a string representing the source of the region, purely cosmetic
         """
         lat  = np.hstack([[- 90.],np.asarray(lats),[ 90.]])
-        lon  = np.hstack([[-180.],np.asarray(lons),[180.]])
+        lon  = np.hstack([[0.],np.asarray(lons),[360.]])
         mask = np.asarray([[1,1,1],
                            [1,0,1],
                            [1,1,1]],dtype=bool)
@@ -308,9 +308,9 @@ if "global" not in Regions().regions:
     # Populate some regions
     r = Regions()
     src = "ILAMB internal"
-    r.addRegionLatLonBounds("global","Globe",(-89.999, 89.999),(-179.999, 179.999),src)
+    r.addRegionLatLonBounds("global","Globe",(-89.999, 89.999),(0, 359.999),src)
     Regions._regions["global"][3][...] = 0. # ensure global mask is null
-    r.addRegionLatLonBounds("globe","Global - All",(-89.999, 89.999),(-179.999, 179.999),src)
+    r.addRegionLatLonBounds("globe","Global - All",(-89.999, 89.999),(0, 359.999),src)
     Regions._regions["globe"][3][...] = 0. # ensure global mask is null
 
     # GFED regions

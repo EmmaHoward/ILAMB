@@ -11,15 +11,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def _shiftLon(lon):
-    return (lon<=180)*lon + (lon>180)*(lon-360) + (lon<-180)*360
+    return (lon>=0)*lon + (lon<0)*(lon+360) + (lon<-180)*360
 
 def _shiftFirstColumnToDateline(lon,lon_bnds=None,data=None,area=None):
     shift = lon.argmin()
     lon = np.roll(lon,-shift)
     if lon_bnds is not None:
         lon_bnds = np.roll(lon_bnds,-shift,axis=0)
-        if lon_bnds[ 0,0] > lon_bnds[ 0,1]: lon_bnds[ 0,0] = max(lon_bnds[ 0,0]-360,-180)
-        if lon_bnds[-1,1] < lon_bnds[-1,0]: lon_bnds[-1,1] = min(lon_bnds[-1,1]+360,+180)
+        if lon_bnds[ 0,0] > lon_bnds[ 0,1]: lon_bnds[ 0,0] = max(lon_bnds[ 0,0]-360,0)
+        if lon_bnds[-1,1] < lon_bnds[-1,0]: lon_bnds[-1,1] = min(lon_bnds[-1,1]+360,360)
     if data is not None: data = np.roll(data,-shift,axis=-1)
     if area is not None: area = np.roll(area,-shift,axis=-1)
     return lon,lon_bnds,data,area
@@ -209,7 +209,7 @@ class Variable:
             
             # Fix potential problems with rolling the axes of the lon_bnds
             self.lat_bnds = self.lat_bnds.clip(- 90,+ 90)
-            self.lon_bnds = self.lon_bnds.clip(-180,+180)
+            self.lon_bnds = self.lon_bnds.clip(0,+360)
 
             # Make sure that the value lies within the bounds
             assert np.all((self.lat>=self.lat_bnds[:,0])*(self.lat<=self.lat_bnds[:,1]))
@@ -820,8 +820,8 @@ class Variable:
         def _make_bnds(x):
             bnds       = np.zeros(x.size+1)
             bnds[1:-1] = 0.5*(x[1:]+x[:-1])
-            bnds[0]    = max(x[0] -0.5*(x[ 1]-x[ 0]),-180)
-            bnds[-1]   = min(x[-1]+0.5*(x[-1]-x[-2]),+180)
+            bnds[0]    = max(x[0] -0.5*(x[ 1]-x[ 0]),0)
+            bnds[-1]   = min(x[-1]+0.5*(x[-1]-x[-2]),+360)
             return bnds
         assert Unit(var.unit) == Unit(self.unit)
         assert self.temporal == False
@@ -1230,7 +1230,7 @@ class Variable:
                            self.lat_bnds[lat_empty[-1],1]]
                 dx = percent_pad*(extents[1]-extents[0])
                 dy = percent_pad*(extents[3]-extents[2])
-                extents[0] = max(extents[0]-dx,-180); extents[1] = min(extents[1]+dx,+180)
+                extents[0] = max(extents[0]-dx,0); extents[1] = min(extents[1]+dx,+360)
                 extents[2] = max(extents[2]-dy,- 90); extents[3] = min(extents[3]+dy,+ 90)
                 lon_mid    = 0.5*(extents[0]+extents[1])
                 
@@ -1255,7 +1255,7 @@ class Variable:
                            self.lat.min(),self.lat.max()]
                 dx = percent_pad*(extents[1]-extents[0])
                 dy = percent_pad*(extents[3]-extents[2])
-                extents[0] = max(extents[0]-dx,-180); extents[1] = min(extents[1]+dx,+180)
+                extents[0] = max(extents[0]-dx,-0); extents[1] = min(extents[1]+dx,+360)
                 extents[2] = max(extents[2]-dy,- 90); extents[3] = min(extents[3]+dy,+ 90)
                 lon_mid = 0.5*(extents[0]+extents[1])
 
@@ -1264,14 +1264,14 @@ class Variable:
             aspect_ratio = (extents[3]-extents[2])/(extents[1]-extents[0])
             if (extents[1]-extents[0]) > 320:
                 if np.allclose(extents[2],-90) and extents[3] <= 0:
-                    proj = ccrs.Orthographic(central_latitude=-90,central_longitude=0)
+                    proj = ccrs.Orthographic(central_latitude=-90,central_longitude=180)
                     aspect_ratio = 1.
                 elif extents[3]>75 and extents[2] >= 0:
-                    proj = ccrs.Orthographic(central_latitude=+90,central_longitude=0)
+                    proj = ccrs.Orthographic(central_latitude=+90,central_longitude=180)
                     aspect_ratio = 1.
                 elif (extents[3]-extents[2]) > 140:
-                    proj = ccrs.Robinson(central_longitude=0)
-                    extents = [-180,180,-90,90]
+                    proj = ccrs.Robinson(central_longitude=180)
+                    extents = [-0,360,-90,90]
                     aspect_ratio = 0.5
                     lon_mid = 0.
                     
@@ -1295,6 +1295,7 @@ class Variable:
             ax.add_feature(cfeature.NaturalEarthFeature('physical','ocean','110m',
                                                         edgecolor='face',
                                                         facecolor='0.750'),zorder=-1)
+            ax.coastlines()
             ax.set_extent(extents,ccrs.PlateCarree())
             if cbar: fig.colorbar(p,orientation='horizontal',pad=0.05,label=label)
             if rem_mask is not None: self.data.mask = rem_mask
