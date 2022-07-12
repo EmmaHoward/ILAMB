@@ -308,9 +308,9 @@ if "global" not in Regions().regions:
     # Populate some regions
     r = Regions()
     src = "ILAMB internal"
-    r.addRegionLatLonBounds("global","Globe",(-89.999, 89.999),(0, 359.999),src)
+    r.addRegionLatLonBounds("global","Globe",(-55, 10),(90, 210),src)
     Regions._regions["global"][3][...] = 0. # ensure global mask is null
-    r.addRegionLatLonBounds("globe","Global - All",(-89.999, 89.999),(0, 359.999),src)
+    r.addRegionLatLonBounds("globe","Global - All",(-55, 10),(90, 210),src)
     Regions._regions["globe"][3][...] = 0. # ensure global mask is null
 
     # GFED regions
@@ -329,3 +329,9 @@ if "global" not in Regions().regions:
     r.addRegionLatLonBounds("seas","Southeast Asia",                   (  5.25, 30.25),(  65.25, 120.25),src)
     r.addRegionLatLonBounds("eqas","Equatorial Asia",                  (-10.25, 10.25),(  99.75, 150.25),src)
     r.addRegionLatLonBounds("aust","Australia",                        (-41.25,-10.50),( 112.00, 154.00),src)
+
+    # BARPA regions
+    r.addRegionLatLonBounds("twpac","Tropical West Pacific",           (-23.00, 10.00),( 160.00, 210.00),'user defined')
+    r.addRegionLatLonBounds('MC',"Maritime Continent",                 (-15.00, 10.00),(  90.00, 155.00),'user defined')
+    r.addRegionLatLonBounds('swpac','South West Pacific',              (-55.25,-23.00),( 160.00, 210.00),'user defined')
+    r.addRegionNetCDF4("/scratch/tp28/eh6215/ilamb/ILAMB_sample/DATA/regions/NRM_clusters.nc")
