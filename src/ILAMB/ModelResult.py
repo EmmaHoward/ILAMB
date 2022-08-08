@@ -277,7 +277,6 @@ class ModelResult():
         for v in altvars:
             if v not in self.variables: continue
             for ifile,pathName in enumerate(self.variables[v]):
-                if _skipFile(pathName,altvars,lats,lons,same_site_epsilon): continue
                 var = Variable(filename       = pathName,
                                variable_name  = variable,
                                alternate_vars = altvars[1:],

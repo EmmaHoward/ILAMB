@@ -146,7 +146,7 @@ class Confrontation(object):
         self.space_mean     = keywords.get("space_mean",True)
         self.relationships  = keywords.get("relationships",None)
         self.keywords       = keywords
-        self.extents        = np.asarray([[-90.,+90.],[-180.,+180.]])
+        self.extents        = np.asarray([[-90.,+90.],[0.,360.]])
         self.study_limits   = []
         self.cweight         = 1
         
@@ -297,8 +297,8 @@ class Confrontation(object):
         mod = m.extractTimeSeries(self.variable,
                                   alt_vars     = self.alternate_vars,
                                   expression   = self.derived,
-                                  initial_time = obs.time_bnds[ 0,0],
-                                  final_time   = obs.time_bnds[-1,1],
+                                 # initial_time = obs.time_bnds[ 0,0],
+                                 # final_time   = obs.time_bnds[-1,1],
                                   lats         = None if obs.spatial else obs.lat,
                                   lons         = None if obs.spatial else obs.lon)
         obs,mod = il.MakeComparable(obs,mod,
@@ -424,6 +424,7 @@ class Confrontation(object):
         
         # Determine the min/max of variables over all models
         limits = {}
+        r = Regions()
         for fname in filelist:
             with Dataset(fname) as dataset:
                 if "MeanState" not in dataset.groups: continue
@@ -432,7 +433,6 @@ class Confrontation(object):
                     var = dataset.groups["MeanState"].variables[vname]
                     if var[...].size <= 1: continue
                     pname  = vname.split("_")[0]
-
                     """If the plot is a time series, it has been averaged over regions
                     already and we need a separate dictionary for the
                     region as well. These can be based on the
@@ -453,24 +453,41 @@ class Confrontation(object):
                         """If the plot is spatial, we want to set the limits as a percentile
                         of all data across models and the
                         benchmark. So here we load the data up and in
-                        another pass will compute the percentiles."""
+                        another pass will compute the percentiles.
+                        EH: different limits for different regions
+                        """
                         if pname not in limits:
                             limits[pname] = {}
-                            limits[pname]["min"]  = +1e20
-                            limits[pname]["max"]  = -1e20
-                            limits[pname]["unit"] = post.UnitStringToMatplotlib(var.getncattr("units"))
-                            limits[pname]["data"] = var[...].compressed()
+                        limits[pname]["unit"] = post.UnitStringToMatplotlib(var.getncattr("units"))
+                        try:
+                          lat = dataset.groups['MeanState'].variables[var.dimensions[0]][...]
+                          lon = dataset.groups['MeanState'].variables[var.dimensions[1]][...]
+                          v = Variable(name=pname,unit=var.getncattr("units"),lat=lat,lon=lon,data=var[...])
+                          point_data = False
+                        except KeyError:
+                          point_data = True
+                        for region in self.regions:
+                            if region not in limits[pname]:
+                                limits[pname][region] = {}
+                                limits[pname][region]["min"]  = +1e20
+                                limits[pname][region]["max"]  = -1e20
+                                if point_data:
+                                    limits[pname][region]["data"] = var[...].compressed()
+                                else:
+                                    limits[pname][region]["data"] = var[...][(1-r.getMask(region,v)).astype(bool)].compressed()
                         else:
-                            limits[pname]["data"] = np.hstack([limits[pname]["data"],var[...].compressed()])
+                            tmp = var[...][(1-r.getMask(region,v)).astype(bool)].compressed()
+                            limits[pname][region]["data"] = np.hstack([limits[pname][region]["data"],tmp])
 
         # For those limits which we built up data across all models, compute the percentiles
         for pname in limits.keys():
-            if "data" in limits[pname]:
-                limits[pname]["min"],limits[pname]["max"] = np.percentile(limits[pname]["data"],[1,99])
+            for region in self.regions:
+                if region in limits[pname] and "data" in limits[pname][region]:
+                    limits[pname][region]["min"],limits[pname][region]["max"] = np.percentile(limits[pname][region]["data"],[1,99])
                 
         # Second pass to plot legends (FIX: only for master?)
         for pname in limits.keys():
-
+          for region in self.regions:
             try:
                 opts = space_opts[pname]
             except:
@@ -478,19 +495,23 @@ class Confrontation(object):
 
             # Determine plot limits and colormap
             if opts["sym"]:
-                vabs =  max(abs(limits[pname]["min"]),abs(limits[pname]["min"]))
-                limits[pname]["min"] = -vabs
-                limits[pname]["max"] =  vabs
+                vabs =  max(abs(limits[pname][region]["max"]),abs(limits[pname][region]["min"]))
+                limits[pname][region]["min"] = -vabs
+                limits[pname][region]["max"] =  vabs
 
             # if a score, force to be [0,1]
             if "score" in pname:
-                limits[pname]["min"] = 0
-                limits[pname]["max"] = 1
+                limits[pname][region]["min"] = 0
+                limits[pname][region]["max"] = 1
                 
             limits[pname]["cmap"] = opts["cmap"]
             if limits[pname]["cmap"] == "choose": limits[pname]["cmap"] = self.cmap
             if "score" in pname:
                 limits[pname]["cmap"] = plt.cm.get_cmap(limits[pname]["cmap"],3)
+
+            if pname == "phase":
+                limits[pname][region]['min'] = 0
+                limits[pname][region]['max'] = 365
 
             # Plot a legend for each key
             if opts["haslegend"]:
@@ -498,8 +519,8 @@ class Confrontation(object):
                 label  = opts["label"]
                 if label == "unit": label = limits[pname]["unit"]
                 post.ColorBar(ax,
-                              vmin = limits[pname]["min"],
-                              vmax = limits[pname]["max"],
+                              vmin = limits[pname][region]["min"],
+                              vmax = limits[pname][region]["max"],
                               cmap = limits[pname]["cmap"],
                               ticks = opts["ticks"],
                               ticklabels = opts["ticklabels"],
@@ -734,6 +755,7 @@ class Confrontation(object):
                         if pname not in self.limits.keys(): continue
                         if pname not in space_opts: continue
                         opts = space_opts[pname]
+                        cbar = opts['cbar'] if 'cbar' in opts else False   
 
                         # add to html layout
                         page.addFigure(opts["section"],
@@ -746,9 +768,10 @@ class Confrontation(object):
                         for region in self.regions:
                             ax = var.plot(None,
                                           region = region,
-                                          vmin   = self.limits[pname]["min"],
-                                          vmax   = self.limits[pname]["max"],
-                                          cmap   = self.limits[pname]["cmap"])
+                                          vmin   = self.limits[pname][region]["min"],
+                                          vmax   = self.limits[pname][region]["max"],
+                                          cmap   = self.limits[pname]["cmap"],
+                                          cbar   = cbar)
                             fig = ax.get_figure()
                             fig.savefig(os.path.join(self.output_path,"%s_%s_%s.png" % (m.name,region,pname)))
                             plt.close()
@@ -757,6 +780,7 @@ class Confrontation(object):
                         if self.master and (pname == "timeint" or pname == "phase" or pname == "iav"):
 
                             opts = space_opts[pname]
+                            cbar = opts['cbar'] if 'cbar' in opts else False   
 
                             # add to html layout
                             page.addFigure(opts["section"],
@@ -770,9 +794,10 @@ class Confrontation(object):
                             for region in self.regions:
                                 ax = obs.plot(None,
                                               region = region,
-                                              vmin   = self.limits[pname]["min"],
-                                              vmax   = self.limits[pname]["max"],
-                                              cmap   = self.limits[pname]["cmap"])
+                                              vmin   = self.limits[pname][region]["min"],
+                                              vmax   = self.limits[pname][region]["max"],
+                                              cmap   = self.limits[pname]["cmap"],
+                                              cbar   = cbar)
                                 fig = ax.get_figure()
                                 fig.savefig(os.path.join(self.output_path,"Benchmark_%s_%s.png" % (region,pname)))
                                 plt.close()
@@ -980,14 +1005,14 @@ class Confrontation(object):
                 com = Relationship(com_ind,com_dep,order=1)
 
                 # set limits to global across models
-                ref.limits = ([self.limits["timeint"]["min"],
-                               self.limits["timeint"]["max"]],
-                              [   c.limits["timeint"]["min"],
-                                  c.limits["timeint"]["max"]])
-                com.limits = ([self.limits["timeint"]["min"],
-                               self.limits["timeint"]["max"]],
-                              [   c.limits["timeint"]["min"],
-                                  c.limits["timeint"]["max"]])
+                ref.limits = ([self.limits["timeint"]['global']["min"],
+                               self.limits["timeint"]['global']["max"]],
+                              [   c.limits["timeint"]['global']["min"],
+                                  c.limits["timeint"]['global']["max"]])
+                com.limits = ([self.limits["timeint"]['global']["min"],
+                               self.limits["timeint"]['global']["max"]],
+                              [   c.limits["timeint"]['global']["min"],
+                                  c.limits["timeint"]['global']["max"]])
 
                 # Add figures to the html page
                 page.addFigure(c.longname,

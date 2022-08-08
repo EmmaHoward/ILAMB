@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def _shiftLon(lon):
-    return (lon>=0)*lon + (lon<0)*(lon+360) + (lon<-180)*360
+    return (lon>=0)*lon + (lon<0)*(lon+360) 
 
 def _shiftFirstColumnToDateline(lon,lon_bnds=None,data=None,area=None):
     shift = lon.argmin()

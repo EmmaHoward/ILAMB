@@ -73,7 +73,8 @@ space_opts["timeint"] = { "name"      :"Temporally integrated period mean",
                           "section"   :"Temporally integrated period mean",
                           "pattern"   :"MNAME_RNAME_timeint.png",
                           "sidelbl"   :"MODEL MEAN",
-                          "haslegend" :True }
+                          "haslegend" :False,
+                          "cbar"      :True }
 
 space_opts["timeintremap"] = { "name"      :"Temporally integrated remapped period mean",
                                "cmap"      :"choose",
@@ -84,7 +85,9 @@ space_opts["timeintremap"] = { "name"      :"Temporally integrated remapped peri
                                "section"   :"Temporally integrated period mean",
                                "pattern"   :"MNAME_RNAME_timeintremap.png",
                                "sidelbl"   :"MAPPED MODEL MEAN",
-                               "haslegend" :True }
+                               "haslegend" :False,
+                               "cbar"      :True }
+
 
 space_opts["bias"]    = { "name"      :"Temporally integrated period mean bias",
                           "cmap"      :"bias",
@@ -95,7 +98,9 @@ space_opts["bias"]    = { "name"      :"Temporally integrated period mean bias",
                           "section"   :"Temporally integrated period mean",
                           "pattern"   :"MNAME_RNAME_bias.png",
                           "sidelbl"   :"BIAS",
-                          "haslegend" :True }
+                          "haslegend" :False,
+                          "cbar"      :True }
+
 
 space_opts["biasscore"] = { "name"      :"Temporally integrated period mean bias score",
                             "cmap"      :"score",
@@ -106,7 +111,8 @@ space_opts["biasscore"] = { "name"      :"Temporally integrated period mean bias
                             "section"   :"Temporally integrated period mean",
                             "pattern"   :"MNAME_RNAME_biasscore.png",
                             "sidelbl"   :"BIAS SCORE",
-                            "haslegend" :True }
+                            "haslegend" :True}
+
 
 space_opts["rmse"]    = { "name"      :"Temporally integrated period mean rmse",
                           "cmap"      :"YlOrRd",
@@ -117,7 +123,9 @@ space_opts["rmse"]    = { "name"      :"Temporally integrated period mean rmse",
                           "section"   :"Temporally integrated period mean",
                           "pattern"   :"MNAME_RNAME_rmse.png",
                           "sidelbl"   :"RMSE",
-                          "haslegend" :True }
+                          "haslegend" :False,
+                          "cbar"      :True }
+
 
 space_opts["rmsescore"] = { "name"      :"Temporally integrated period mean rmse score",
                             "cmap"      :"score",
@@ -130,6 +138,7 @@ space_opts["rmsescore"] = { "name"      :"Temporally integrated period mean rmse
                             "sidelbl"   :"RMSE SCORE",
                             "haslegend" :True }
 
+
 space_opts["iav"]    = { "name"      :"Interannual variability",
                           "cmap"      :"Reds",
                           "sym"       :False,
@@ -139,7 +148,9 @@ space_opts["iav"]    = { "name"      :"Interannual variability",
                           "section"   :"Temporally integrated period mean",
                           "pattern"   :"MNAME_RNAME_iav.png",
                           "sidelbl"   :"MODEL INTERANNUAL VARIABILITY",
-                          "haslegend" :True }
+                          "haslegend" :False,
+                          "cbar"      :True }
+
 
 space_opts["iavscore"] = { "name"      :"Interannual variability score",
                            "cmap"      :"score",
@@ -150,7 +161,8 @@ space_opts["iavscore"] = { "name"      :"Interannual variability score",
                            "section"   :"Temporally integrated period mean",
                            "pattern"   :"MNAME_RNAME_iavscore.png",
                            "sidelbl"   :"INTERANNUAL VARIABILITY SCORE",
-                           "haslegend" :True }
+                           "haslegend" :True}
+
 
 space_opts["shift"]   = { "name"      :"Temporally integrated mean phase shift",
                           "cmap"      :"PRGn",
@@ -161,7 +173,9 @@ space_opts["shift"]   = { "name"      :"Temporally integrated mean phase shift",
                           "section"   :"Temporally integrated period mean",
                           "pattern"   :"MNAME_RNAME_shift.png",
                           "sidelbl"   :"DIFFERENCE IN MAX MONTH",
-                          "haslegend" :True }
+                          "haslegend" :False,
+                          "cbar"      :True }
+
 
 space_opts["shiftscore"] = { "name"      :"Temporally integrated mean phase shift score",
                              "cmap"      :"score",
@@ -172,10 +186,12 @@ space_opts["shiftscore"] = { "name"      :"Temporally integrated mean phase shif
                              "section"   :"Temporally integrated period mean",
                              "pattern"   :"MNAME_RNAME_shiftscore.png",
                              "sidelbl"   :"SEASONAL CYCLE SCORE",
-                             "haslegend" :True }
+                             "haslegend" :False,
+                             "cbar"      :True }
+
 
 space_opts["phase"]   = { "name"      :"Temporally integrated period mean max month",
-                          "cmap"      :"jet",
+                          "cmap"      :"turbo",
                           "sym"       :False,
                           "ticks"     :mid_months,
                           "ticklabels":lbl_months,
@@ -183,7 +199,8 @@ space_opts["phase"]   = { "name"      :"Temporally integrated period mean max mo
                           "section"   :"Temporally integrated period mean",
                           "pattern"   :"MNAME_RNAME_phase.png",
                           "sidelbl"   :"MODEL MAX MONTH",
-                          "haslegend" :True  }
+                          "haslegend" :True}
+
 
 
 time_opts = {}

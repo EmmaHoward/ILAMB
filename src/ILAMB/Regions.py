@@ -86,7 +86,7 @@ class Regions(object):
         return regionnames 
 
        
-    def addRegionNetCDF4(self,filename):
+    def addRegionNetCDF4(self,filename,merge=None):
         """Add regions found in a netCDF4 file.
 
         This routine will search the target filename's variables for
@@ -125,7 +125,8 @@ class Regions(object):
         ----------
         filename : str
             the full path of the netCDF4 file containing the regions
-
+        merge : None or str
+            if not none, the name of a superregion representing the union of all regions
         Returns
         -------
         regions : list of str
@@ -145,12 +146,19 @@ class Regions(object):
                 ids = np.ma.compressed(np.unique(v[...]))
                 assert ids.max() < lbl.size
                 for i in ids:
-                    label = lbl[i].lower()
-                    name  = nam[i]
+                    label = lbl[int(i)].lower().replace("_","")
+                    name  = nam[int(i)]
                     mask  = v[...].data != i
                     Regions._regions[label] = [name,lat,lon,mask]
                     Regions._sources[label] = os.path.basename(filename)
                     labels.append(label)
+                if merge is not None:
+                  label = merge.lower().replace("_","")
+                  name = merge
+                  mask = v[...].mask != 0
+                  Regions._regions[label] = [name,lat,lon,mask]
+                  Regions._sources[label] = os.path.basename(filename)
+                  labels.append(label)
         return labels
 
     def getRegionName(self,label):
@@ -328,10 +336,9 @@ if "global" not in Regions().regions:
     r.addRegionLatLonBounds("ceas","Central Asia",                     ( 30.25, 54.75),(  30.25, 142.58),src)
     r.addRegionLatLonBounds("seas","Southeast Asia",                   (  5.25, 30.25),(  65.25, 120.25),src)
     r.addRegionLatLonBounds("eqas","Equatorial Asia",                  (-10.25, 10.25),(  99.75, 150.25),src)
-    r.addRegionLatLonBounds("aust","Australia",                        (-41.25,-10.50),( 112.00, 154.00),src)
 
     # BARPA regions
     r.addRegionLatLonBounds("twpac","Tropical West Pacific",           (-23.00, 10.00),( 160.00, 210.00),'user defined')
     r.addRegionLatLonBounds('MC',"Maritime Continent",                 (-15.00, 10.00),(  90.00, 155.00),'user defined')
     r.addRegionLatLonBounds('swpac','South West Pacific',              (-55.25,-23.00),( 160.00, 210.00),'user defined')
-    r.addRegionNetCDF4("/scratch/tp28/eh6215/ilamb/ILAMB_sample/DATA/regions/NRM_clusters.nc")
+    r.addRegionNetCDF4("/scratch/tp28/eh6215/ilamb/ILAMB_sample/DATA/regions/NRM_clusters.nc",merge='australia')

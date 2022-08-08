@@ -2,7 +2,7 @@ from scipy.interpolate import NearestNDInterpolator
 from .constants import mid_months,bnd_months
 from .Regions import Regions
 from netCDF4 import Dataset
-from datetime import datetime
+from datetime import datetime,timedelta
 from cf_units import Unit
 from copy import deepcopy
 from mpi4py import MPI
@@ -201,6 +201,8 @@ def CreateTimeBounds(t,alpha=0.5):
 def ConvertCalendar(t,units,calendar):
     """
     """
+    if calendar=='noleap' and t.year%4==0 and t.month==2 and t.day==29:
+      return cf.date2num(cf.datetime(t.year,t.month,t.day-1,t.hour,t.minute,t.second),units,calendar=calendar)
     return cf.date2num(cf.datetime(t.year,t.month,t.day,t.hour,t.minute,t.second),units,calendar=calendar)
 
 def GetTime(var,t0=None,tf=None,convert_calendar=True,ignore_time_array=True):
@@ -279,11 +281,10 @@ def GetTime(var,t0=None,tf=None,convert_calendar=True,ignore_time_array=True):
     T     = np.asarray(t [begin:(end+1)])
     TB    = np.asarray(tb[begin:(end+1)])
     if ignore_time_array: T = TB.mean(axis=1)
-
     # Are the time intervals consecutively
     if not np.allclose(TB[1:,0],TB[:-1,1]):
         msg = "Time intervals defined in %s:%s are not continuous" % (dset.filepath(),time_bnds_name)
-        raise ValueError(msg)
+#        raise ValueError(msg)
 
     # Do the times lie in the bounds
     TF = (T >= TB[:,0])*(T <= TB[:,1])
@@ -339,8 +340,8 @@ def CellAreas(lat,lon,lat_bnds=None,lon_bnds=None):
     x[1:-1] = 0.5*(lon[1:]+lon[:-1])
     x[ 0]   = lon[ 0]-0.5*(lon[ 1]-lon[ 0])
     x[-1]   = lon[-1]+0.5*(lon[-1]-lon[-2])
-    if(x.max() > 181): x -= 180
-    x  = x.clip(-180,180)
+    if(x.max() < 0): x += 360
+    x  = x.clip(0,360)
     x *= np.pi/180.
 
     y = np.zeros(lat.size+1)
@@ -380,7 +381,7 @@ def GlobalLatLonGrid(res,**keywords):
     lon : numpy.ndarray
         a 1D array of longitudes which represent cell centroids
     """
-    from_zero = keywords.get("from_zero",False)
+    from_zero = keywords.get("from_zero",True)
     res_lat   = keywords.get("res_lat",res)
     res_lon   = keywords.get("res_lon",res)
     nlon    = int(360./res_lon)+1
@@ -943,8 +944,8 @@ def ComposeSpatialGrids(var1,var2):
     def _make_bnds(x):
         bnds       = np.zeros(x.size+1)
         bnds[1:-1] = 0.5*(x[1:]+x[:-1])
-        bnds[ 0]   = max(x[ 0]-0.5*(x[ 1]-x[ 0]),-180)
-        bnds[-1]   = min(x[-1]+0.5*(x[-1]-x[-2]),+180)
+        bnds[ 0]   = max(x[ 0]-0.5*(x[ 1]-x[ 0]),0)
+        bnds[-1]   = min(x[-1]+0.5*(x[-1]-x[-2]),+360)
         return bnds
     lat1_bnd = _make_bnds(var1.lat)
     lon1_bnd = _make_bnds(var1.lon)
@@ -975,7 +976,7 @@ def _composeGrids(v1,v2):
     lat_bnds = np.unique(np.hstack([v1.lat_bnds.flatten(),v2.lat_bnds.flatten()]))
     lon_bnds = np.unique(np.hstack([v1.lon_bnds.flatten(),v2.lon_bnds.flatten()]))
     lat_bnds = lat_bnds[(lat_bnds>=- 90)*(lat_bnds<=+ 90)]
-    lon_bnds = lon_bnds[(lon_bnds>=-180)*(lon_bnds<=+180)]
+    lon_bnds = lon_bnds[(lon_bnds>=0)*(lon_bnds<=+360)]
     lat_bnds = np.vstack([lat_bnds[:-1],lat_bnds[+1:]]).T
     lon_bnds = np.vstack([lon_bnds[:-1],lon_bnds[+1:]]).T
     lat      = lat_bnds.mean(axis=1)
@@ -1686,12 +1687,11 @@ def MakeComparable(ref,com,**keywords):
     mask_ref    = keywords.get("mask_ref" ,False)
     eps         = keywords.get("eps"      ,30./60./24.)
     window      = keywords.get("window"   ,0.)
-    extents     = keywords.get("extents"  ,np.asarray([[-90.,+90.],[-180.,+180.]]))
+    extents     = keywords.get("extents"  ,np.asarray([[-90.,+90.],[0.,+360.]]))
     logstring   = keywords.get("logstring","")
     prune_sites = keywords.get("prune_sites",False)
     site_atol   = keywords.get("site_atol",0.25)
-    allow_diff_times = keywords.get("allow_diff_times",False)
-    
+    allow_diff_times = keywords.get("allow_diff_times",True)
     # If one variable is temporal, then they both must be
     if ref.temporal != com.temporal:
         msg  = "%s Datasets are not uniformly temporal: " % logstring
@@ -1780,8 +1780,8 @@ def MakeComparable(ref,com,**keywords):
             shp0 = np.asarray(np.copy(ref.data.shape),dtype=int)
             ref.trim(lat=[lat_bnds[0] if diff[0,0] >= 5. else -90.,
                           lat_bnds[1] if diff[0,1] >= 5. else +90],
-                     lon=[lon_bnds[0] if diff[1,0] >= 5. else -180.,
-                          lon_bnds[1] if diff[1,1] >= 5. else +180])
+                     lon=[lon_bnds[0] if diff[1,0] >= 5. else 0.,
+                          lon_bnds[1] if diff[1,1] >= 5. else +360])
             shp  = np.asarray(np.copy(ref.data.shape),dtype=int)
             msg  = "%s Spatial data was clipped from the reference: " % logstring
             msg += " before: %s" % (shp0)
@@ -1795,8 +1795,8 @@ def MakeComparable(ref,com,**keywords):
             shp0 = np.asarray(np.copy(com.data.shape),dtype=int)
             com.trim(lat=[lat_bnds[0] if diff[0,0] >= 5. else -90.,
                           lat_bnds[1] if diff[0,1] >= 5. else +90],
-                     lon=[lon_bnds[0] if diff[1,0] >= 5. else -180.,
-                          lon_bnds[1] if diff[1,1] >= 5. else +180])
+                     lon=[lon_bnds[0] if diff[1,0] >= 5. else 0.,
+                          lon_bnds[1] if diff[1,1] >= 5. else +360])
             shp  = np.asarray(np.copy(com.data.shape),dtype=int)
             msg  = "%s Spatial data was clipped from the comparison: " % logstring
             msg += " before: %s" % (shp0)
@@ -1809,29 +1809,33 @@ def MakeComparable(ref,com,**keywords):
         # comparison, coarsen the comparison
         if np.log10(ref.dt/com.dt) > 0.5:
             com = com.coarsenInTime(ref.time_bnds,window=window)
-        elif np.log10(com.dt/ref.dt) > 0.5:
-            msg  = "%s Reference data was coarsened\n: " % logstring
-            msg += " dt before: %s" % (ref.dt)
-            ref  = ref.coarsenInTime(com.time_bnds,window=window)
-            msg += " dt after: %s" % (ref.dt)
-            logger.info(msg)
 
         # Time bounds of the reference dataset
         t0  = ref.time_bnds[ 0,0]
         tf  = ref.time_bnds[-1,1]
 
-        # Find the comparison time range which fully encompasses the reference
-        com = ClipTime(com,t0,tf)
+        ## Find the comparison time range which fully encompasses the reference
+        # EH: clip to same-length time periods
+        if allow_diff_times:
+            n = min(ref.time.size,com.time.size)-1
+            t0 = com.time_bnds[0,0]
+            tf = com.time_bnds[n,1]
+            com = ClipTime(com,t0,tf) # orig
+            if clip_ref:
+                t0 = ref.time_bnds[0,0]
+                tf = ref.time_bnds[n,1]
+                ref = ref.trim(t=[t0,tf])
 
-        if clip_ref:
+        else:
+            com = ClipTime(com,t0,tf)
+            if clip_ref:
 
-            # We will clip the reference dataset too
-            t0  = max(t0,com.time_bnds[ 0,0])
-            tf  = min(tf,com.time_bnds[-1,1])
-            ref = ref.trim(t=[t0,tf])
+                # We will clip the reference dataset too
+                t0  = max(t0,com.time_bnds[ 0,0])
+                tf  = min(tf,com.time_bnds[-1,1])
+                ref = ref.trim(t=[t0,tf])
         
         # Check that we now are on the same time intervals
-        if not allow_diff_times:
             if ref.time.size != com.time.size:
 
                 # Special case - it frequently works out that we are 1
@@ -1849,7 +1853,6 @@ def MakeComparable(ref,com,**keywords):
                     msg += "reference = %d, comparison = %d" % (ref.time.size,com.time.size)
                     logger.debug(msg)
                     raise VarsNotComparable()
-
             if not np.allclose(ref.time_bnds,com.time_bnds,atol=0.75*ref.dt):
                 msg  = "%s Datasets are defined at different times" % logstring
                 logger.debug(msg)
@@ -1948,6 +1951,8 @@ def CombineVariables(V):
         time_bnds[ind[i]:ind[i+1],...] = v.time_bnds
         data     [ind[i]:ind[i+1],...] = v.data
         mask     [ind[i]:ind[i+1],...] = v.data.mask
+   
+
 
     # If assembled from single slice files and no time bounds were
     # provided, they will not be reflective of true bounds here. If
