@@ -475,9 +475,9 @@ class Confrontation(object):
                                     limits[pname][region]["data"] = var[...].compressed()
                                 else:
                                     limits[pname][region]["data"] = var[...][(1-r.getMask(region,v)).astype(bool)].compressed()
-                        else:
-                            tmp = var[...][(1-r.getMask(region,v)).astype(bool)].compressed()
-                            limits[pname][region]["data"] = np.hstack([limits[pname][region]["data"],tmp])
+                            else:
+                                tmp = var[...][(1-r.getMask(region,v)).astype(bool)].compressed()
+                                limits[pname][region]["data"] = np.hstack([limits[pname][region]["data"],tmp])
 
         # For those limits which we built up data across all models, compute the percentiles
         for pname in limits.keys():

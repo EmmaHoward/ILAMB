@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/g/data/hh5/public/apps/miniconda3/envs/analysis3-22.04/bin/python3.9
 """
 Runs an ILAMB study.
 """
@@ -396,7 +396,7 @@ def WorkConfront(W,verbose=False,clean=False):
             logger.debug("[%s][%s]\n%s" % (c.longname,m.name,format_exc()))
             if verbose:
                 print(("    {0:>%d} {1:<%d} %s%s%s" % (maxCL,maxML,FAIL,ex.__class__.__name__,ENDC)).format(c.longname,m.name))
-                
+               
 def WorkPost(M,C,W,S,verbose=False,skip_plots=False):
     """Performs the post-processing
 
@@ -453,7 +453,7 @@ def WorkPost(M,C,W,S,verbose=False,skip_plots=False):
     sys.stdout.flush(); comm.Barrier()
 
 def RestrictiveModelExtents(M,eps=2.):
-    extents0 = np.asarray([[-90.,+90.],[-180.,+180.]])
+    extents0 = np.asarray([[-90.,+90.],[-0.,+360.]])
     extents  = extents0.copy()
     for m in M:
         for i in range(2):
