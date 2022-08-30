@@ -451,6 +451,62 @@ def TrueError(lat1_bnd,lon1_bnd,lat1,lon1,data1,lat2_bnd,lon2_bnd,lat2,lon2,data
     error : numpy array
         an array of the pointwise error of shape = (lat.size,lon.size,...)
     """
+    import iris
+    lat1_c = iris.coords.DimCoord(lat1,bounds=lat1_bnd, name='latitude', units= 'degrees')
+    lon1_c = iris.coords.DimCoord(lon1,bounds=lon1_bnd, name='longitude', units= 'degrees')
+    lat2_c = iris.coords.DimCoord(lat2,bounds=lat2_bnd, name='latitude', units= 'degrees')
+    lon2_c = iris.coords.DimCoord(lon2,bounds=lon2_bnd, name='longitude', units= 'degrees')
+
+    cube1 = iris.cube.Cube(data1)
+    cube1.AddDimCoord(lat1_c,0)
+    cube1.AddDimCoord(lon1_c,1)
+    cube2.AddDimCoord(lat2_c,0)
+    cube2.AddDimCoord(lon2_c,1)
+    # combine limits, sort and remove duplicates
+    lat_bnd = np.hstack((lat1_bnd,lat2_bnd)); lat_bnd.sort(); lat_bnd = np.unique(lat_bnd)
+    lon_bnd = np.hstack((lon1_bnd,lon2_bnd)); lon_bnd.sort(); lon_bnd = np.unique(lon_bnd)
+
+    # need centroids of new grid for nearest-neighbor interpolation
+    lat = 0.5*(lat_bnd[1:]+lat_bnd[:-1])
+    lon = 0.5*(lon_bnd[1:]+lon_bnd[:-1])
+
+    # interpolate datasets at new grid
+    d1 = NearestNeighborInterpolation(lat1,lon1,data1,lat,lon)
+    d2 = NearestNeighborInterpolation(lat2,lon2,data2,lat,lon)
+
+    # relative to the first grid/data
+    error = d2-d1
+    return lat_bnd,lon_bnd,lat,lon,error
+
+
+def TrueErrorNN(lat1_bnd,lon1_bnd,lat1,lon1,data1,lat2_bnd,lon2_bnd,lat2,lon2,data2):
+    r"""Computes the pointwise difference between two sets of gridded data
+
+    To obtain the pointwise error we populate a list of common cell
+    interfaces and then interpolate both input arrays to the composite
+    grid resolution using nearest-neighbor interpolation.
+
+    Parameters
+    ----------
+    lat1_bnd, lon1_bnd, lat1, lon1 : numpy.ndarray
+        1D arrays corresponding to the latitude/longitudes of the cell
+        interfaces/centroids
+    data1 : numpy.ndarray
+        an array of data to be interpolated of shape = (lat1.size,lon1.size,...)
+    lat2_bnd, lon2_bnd, lat2, lon2 : numpy.ndarray
+        1D arrays corresponding to the latitude/longitudes of the cell
+        interfaces/centroids
+    data2 : numpy.ndarray
+        an array of data to be interpolated of shape = (lat2.size,lon2.size,...)
+
+    Returns
+    -------
+    lat_bnd, lon_bnd, lat, lon : numpy.ndarray
+        1D arrays corresponding to the latitude/longitudes of the cell
+        interfaces/centroids of the resulting error
+    error : numpy array
+        an array of the pointwise error of shape = (lat.size,lon.size,...)
+    """
     # combine limits, sort and remove duplicates
     lat_bnd = np.hstack((lat1_bnd,lat2_bnd)); lat_bnd.sort(); lat_bnd = np.unique(lat_bnd)
     lon_bnd = np.hstack((lon1_bnd,lon2_bnd)); lon_bnd.sort(); lon_bnd = np.unique(lon_bnd)
@@ -973,8 +1029,14 @@ def ScoreSeasonalCycle(phase_shift):
                     area  = phase_shift.area)
 
 def _composeGrids(v1,v2):
-    lat_bnds = np.unique(np.hstack([v1.lat_bnds.flatten(),v2.lat_bnds.flatten()]))
-    lon_bnds = np.unique(np.hstack([v1.lon_bnds.flatten(),v2.lon_bnds.flatten()]))
+    a1 = np.abs(v1.lat_bnds[:,1]-v1.lat_bnds[:,0]).mean()*np.abs(v1.lon_bnds[:,1]-v1.lon_bnds[:,0]).mean()
+    a2 = np.abs(v2.lat_bnds[:,1]-v2.lat_bnds[:,0]).mean()*np.abs(v2.lon_bnds[:,1]-v2.lon_bnds[:,0]).mean()
+    if a1 >= a2:
+        lat_bnds = np.unique(np.hstack([v1.lat_bnds.flatten()]))
+        lon_bnds = np.unique(np.hstack([v1.lon_bnds.flatten()]))
+    else:
+        lat_bnds = np.unique(np.hstack([v2.lat_bnds.flatten()]))
+        lon_bnds = np.unique(np.hstack([v2.lon_bnds.flatten()]))
     lat_bnds = lat_bnds[(lat_bnds>=- 90)*(lat_bnds<=+ 90)]
     lon_bnds = lon_bnds[(lon_bnds>=0)*(lon_bnds<=+360)]
     lat_bnds = np.vstack([lat_bnds[:-1],lat_bnds[+1:]]).T
@@ -1333,8 +1395,8 @@ def AnalysisMeanStateSpace(ref,com,**keywords):
     ref.convert(plot_unit)
     com.convert(plot_unit)
     lat,lon,lat_bnds,lon_bnds = _composeGrids(ref,com)
+    COM   = com.interpolate(lat=lat,lon=lon,lat_bnds=lat_bnds,lon_bnds=lon_bnds,itype='areaweighted')
     REF   = ref.interpolate(lat=lat,lon=lon,lat_bnds=lat_bnds,lon_bnds=lon_bnds)
-    COM   = com.interpolate(lat=lat,lon=lon,lat_bnds=lat_bnds,lon_bnds=lon_bnds)
     unit  = REF.unit
     area  = REF.area
     ndata = REF.ndata

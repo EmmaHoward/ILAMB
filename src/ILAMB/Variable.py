@@ -1331,7 +1331,7 @@ class Variable:
         if self.spatial and (lat is not None or lon is not None):
             if lat is None: lat = self.lat
             if lon is None: lon = self.lon
-            if itype == 'nearestneighbor':
+            if itype == 'nearestneighbor':# or (self.lat==lat).all() and (self.lon==lon).all():
                 rows  = (np.abs(lat[:,np.newaxis]-self.lat)).argmin(axis=1)
                 cols  = (np.abs(lon[:,np.newaxis]-self.lon)).argmin(axis=1)
                 args  = []
@@ -1368,6 +1368,25 @@ class Variable:
                 frac  = frac.clip(0,1)
                 frac  = RectBivariateSpline(self.lat,self.lon,frac,kx=1,ky=1)
                 output_area = frac(lat,lon,grid=True) * il.CellAreas(lat,lon)
+            elif itype == 'areaweighted':
+                import iris
+                import iris.cube
+                import iris.coords
+                tlat_c = iris.coords.DimCoord(lat,bounds=lat_bnds, standard_name='latitude', units= 'degrees')
+                tlon_c = iris.coords.DimCoord(lon,bounds=lon_bnds, standard_name='longitude', units= 'degrees')
+                slat_c = iris.coords.DimCoord(self.lat,bounds=self.lat_bnds, standard_name='latitude', units= 'degrees')
+                slon_c = iris.coords.DimCoord(self.lon,bounds=self.lon_bnds, standard_name='longitude', units= 'degrees')
+                cube = iris.cube.Cube(data)
+                cube.add_dim_coord(slat_c,cube.ndim-2)
+                cube.add_dim_coord(slon_c,cube.ndim-1)
+                template = iris.cube.Cube(np.ones((len(lat),len(lon))))
+                template.add_dim_coord(tlat_c,0)
+                template.add_dim_coord(tlon_c,1)
+                np.seterr(over='ignore',under='ignore')
+                new_cube = cube.regrid(template,iris.analysis.AreaWeighted())
+                np.seterr(over='raise',under='raise')
+                data = new_cube.data
+                output_area = iris.analysis.cartography.area_weights(new_cube)[0]
             else:
                 raise ValueError("Uknown interpolation type: %s" % itype)
         if self.temporal and time is not None:
