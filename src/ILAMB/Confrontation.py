@@ -4,7 +4,7 @@ from .Relationship import Relationship
 from .Regions import Regions
 from .constants import space_opts,time_opts,mid_months,bnd_months
 import os,glob,re
-from netCDF4 import Dataset
+from netCDF4 import Dataset,MFDataset
 from . import Post as post
 import pylab as plt
 from matplotlib.colors import LogNorm
@@ -142,6 +142,7 @@ class Confrontation(object):
         self.longname       = self.output_path
         self.longname       = "/".join(self.longname.replace("//","/").rstrip("/").split("/")[-2:])
         self.table_unit     = keywords.get("table_unit",None)
+        self.override_units = keywords.get("override_units",None)
         self.plot_unit      = keywords.get("plot_unit",None)
         self.space_mean     = keywords.get("space_mean",True)
         self.relationships  = keywords.get("relationships",None)
@@ -151,12 +152,17 @@ class Confrontation(object):
         self.cweight         = 1
         
         # Make sure the source data exists
-
+        reader = Dataset
         if not os.path.isfile(self.source):
-            msg  = "\n\nI am looking for data for the %s confrontation here\n\n" % self.name
-            msg += "%s\n\nbut I cannot find it. " % self.source
-            msg += "Did you download the data? Have you set the ILAMB_ROOT envronment variable?\n"
-            raise il.MisplacedData(msg)
+            if len(glob.glob(self.source))==0:
+                msg  = "\n\nI am looking for data for the %s confrontation here\n\n" % self.name
+                msg += "%s\n\nbut I cannot find it. " % self.source
+                msg += "Did you download the data? Have you set the ILAMB_ROOT envronment variable?\n"
+                raise il.MisplacedData(msg)
+            else:
+                self.source = glob.glob(self.source)
+                self.source.sort()
+                reader = MFDataset
 
         # Setup a html layout for generating web views of the results
         pages = []
@@ -171,7 +177,8 @@ class Confrontation(object):
         self.hasSites = False
         self.lbls     = None
         y0 = None; yf = None
-        with Dataset(self.source) as dataset:
+        
+        with reader(self.source) as dataset:
             if "data" in dataset.dimensions:
                 #self.hasSites = True
                 if "site_name" in dataset.ncattrs():
@@ -215,7 +222,11 @@ class Confrontation(object):
         pages.append(post.HtmlPage("DataInformation","Data Information"))
         pages[-1].setSections([])
         pages[-1].text = "\n"
-        with Dataset(self.source) as dset:
+        if type(self.source)==list:
+           reader = MFDataset
+        else:
+           reader = Dataset
+        with reader(self.source) as dset:
 
             def _attribute_sort(attr):
                 # If the attribute begins with one of the ones we
@@ -285,11 +296,21 @@ class Confrontation(object):
         mod : ILAMB.Variable.Variable
             the variable context associated with the model result
         """
-        obs = Variable(filename       = self.source,
+        if type(self.source) == list:
+            obs = [Variable(filename       = src,
                        variable_name  = self.variable,
                        alternate_vars = self.alternate_vars,
                        t0 = None if len(self.study_limits) != 2 else self.study_limits[0],
-                       tf = None if len(self.study_limits) != 2 else self.study_limits[1])
+                       tf = None if len(self.study_limits) != 2 else self.study_limits[1]) for src in self.source]
+            obs = il.CombineVariables(obs)
+        else:
+            obs = Variable(filename       = self.source,
+                       variable_name  = self.variable,
+                       alternate_vars = self.alternate_vars,
+                       t0 = None if len(self.study_limits) != 2 else self.study_limits[0],
+                       tf = None if len(self.study_limits) != 2 else self.study_limits[1]) 
+        if self.override_units:
+            obs.unit = self.override_units
         if obs.time is None: raise il.NotTemporalVariable()
         self.pruneRegions(obs)
 

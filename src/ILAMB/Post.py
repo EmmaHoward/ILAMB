@@ -1289,7 +1289,7 @@ def CreateJSON(csv_file,M=None):
                         
             df_m = df.query("AnalysisType=='Relationships' & Region=='%s' & Model=='%s'" % (region,m))
             s_json = s_csv = "Relationships"
-            if 0:# len(df_m):
+            if len(df_m):
                 nest[region][m][s_json] = {'Overall Score':_weightedMean(df_m)}
                 V = list(cfg[s].keys())
                 for v in V:

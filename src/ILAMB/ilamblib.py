@@ -1032,9 +1032,11 @@ def _composeGrids(v1,v2):
     a1 = np.abs(v1.lat_bnds[:,1]-v1.lat_bnds[:,0]).mean()*np.abs(v1.lon_bnds[:,1]-v1.lon_bnds[:,0]).mean()
     a2 = np.abs(v2.lat_bnds[:,1]-v2.lat_bnds[:,0]).mean()*np.abs(v2.lon_bnds[:,1]-v2.lon_bnds[:,0]).mean()
     if a1 >= a2:
+        hres = 1
         lat_bnds = np.unique(np.hstack([v1.lat_bnds.flatten()]))
         lon_bnds = np.unique(np.hstack([v1.lon_bnds.flatten()]))
     else:
+        hres = 2
         lat_bnds = np.unique(np.hstack([v2.lat_bnds.flatten()]))
         lon_bnds = np.unique(np.hstack([v2.lon_bnds.flatten()]))
     lat_bnds = lat_bnds[(lat_bnds>=- 90)*(lat_bnds<=+ 90)]
@@ -1043,7 +1045,7 @@ def _composeGrids(v1,v2):
     lon_bnds = np.vstack([lon_bnds[:-1],lon_bnds[+1:]]).T
     lat      = lat_bnds.mean(axis=1)
     lon      = lon_bnds.mean(axis=1)
-    return lat,lon,lat_bnds,lon_bnds
+    return lat,lon,lat_bnds,lon_bnds,hres
 
 def AnalysisMeanStateSites(ref,com,**keywords):
     """Perform a mean state analysis.
@@ -1394,9 +1396,13 @@ def AnalysisMeanStateSpace(ref,com,**keywords):
     # their cell breaks
     ref.convert(plot_unit)
     com.convert(plot_unit)
-    lat,lon,lat_bnds,lon_bnds = _composeGrids(ref,com)
-    COM   = com.interpolate(lat=lat,lon=lon,lat_bnds=lat_bnds,lon_bnds=lon_bnds,itype='areaweighted')
-    REF   = ref.interpolate(lat=lat,lon=lon,lat_bnds=lat_bnds,lon_bnds=lon_bnds)
+    lat,lon,lat_bnds,lon_bnds,hres = _composeGrids(ref,com)
+    if hres == 1:
+        COM   = com.interpolate(lat=lat,lon=lon,lat_bnds=lat_bnds,lon_bnds=lon_bnds,itype='areaweighted')
+        REF   = ref.interpolate(lat=lat,lon=lon,lat_bnds=lat_bnds,lon_bnds=lon_bnds)
+    else:
+        COM   = com.interpolate(lat=lat,lon=lon,lat_bnds=lat_bnds,lon_bnds=lon_bnds)
+        REF   = ref.interpolate(lat=lat,lon=lon,lat_bnds=lat_bnds,lon_bnds=lon_bnds,itype='areaweighted')
     unit  = REF.unit
     area  = REF.area
     ndata = REF.ndata
