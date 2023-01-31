@@ -149,18 +149,23 @@ def GuessAlpha(t):
     t0 = cf.num2date(t[0],t.units,calendar=t.calendar)
     t1 = cf.num2date(t[1],t.units,calendar=t.calendar)
     dt = (t1-t0).total_seconds()/3600/24
+    conv = 1 # factor to convert (t[0]-y0/m0/t0) into days (i.e. units of dt)
+    if 'hours' in t.units:
+       conv = 24
+    elif 'years' in t.units:
+       conv = 1/365
     if np.allclose(dt,365.,atol=10):
         # annual: assumes that the first time entry represents the beginning of a decade
         y0 = cf.date2num(cf.datetime(10*(t0.year/10),1,1),t.units,calendar=t.calendar)
-        alpha = np.round((t[0]-y0)/dt,1).clip(0,1)
+        alpha = np.round((t[0]-y0)/dt/conv,1).clip(0,1)
     elif np.allclose(dt,30,atol=4):
         # monthly: assumes that the first time entry represents the beginning of a year
         m0 = cf.date2num(cf.datetime(t0.year,1,1),t.units,calendar=t.calendar)
-        alpha = np.round((t[0]-m0)/dt,1).clip(0,1)
+        alpha = np.round((t[0]-m0)/dt/conv,1).clip(0,1)
     elif dt < 0.9:
         # sub-daily: assumes that the first time entry represents the beginning of a day
         h0 = cf.date2num(cf.datetime(t0.year,t0.month,t0.day),t.units,calendar=t.calendar)
-        alpha = np.round((t[0]-h0)/dt,1)
+        alpha = np.round((t[0]-h0)/dt/conv,1)
     else:
         msg = "GuessAlpha for dt = %f [d] not implemented yet" % (dt)
         raise ValueError(msg)
