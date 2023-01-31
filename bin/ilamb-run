@@ -61,8 +61,9 @@ def InitializeModels(model_root,models=[],verbose=False,filter="",regex="",model
     if len(model_year) != 2: model_year = None
     max_model_name_len = 0
     if rank == 0 and verbose: print("\nSearching for model results in %s\n" % model_root)
+    comm.Barrier()
     for subdir, dirs, files in os.walk(model_root):
-        for mname in dirs:
+        for mname in dirs[rank::size]: 
             if len(models) > 0 and mname not in models: continue
             pkl_file = os.path.join(models_path,"%s.pkl" % mname)
             if os.path.isfile(pkl_file):
@@ -77,8 +78,15 @@ def InitializeModels(model_root,models=[],verbose=False,filter="",regex="",model
             M.append(m)
             max_model_name_len = max(max_model_name_len,len(mname))
         break
-    M = sorted(M,key=lambda m: m.name.upper())
-    
+    comm.Barrier()
+    M = comm.gather(M,root=0)
+    max_model_name_len = comm.gather(max_model_name_len,root=0)
+    if rank==0:
+        max_model_name_len = max(max_model_name_len)
+        M = [item for sublist in M for item in sublist]
+        M = sorted(M,key=lambda m: m.name.upper())
+
+    M = comm.scatter([M for i in range(size)],root=0)
     # assign unique colors
     clrs = il.GenerateDistinctColors(len(M))
     for m in M:
@@ -397,7 +405,21 @@ def WorkConfront(W,verbose=False,clean=False):
             if verbose:
                 print(("    {0:>%d} {1:<%d} %s%s%s" % (maxCL,maxML,FAIL,ex.__class__.__name__,ENDC)).format(c.longname,m.name))
                
-def WorkPost(M,C,W,S,verbose=False,skip_plots=False):
+
+def bool_rerun_figures(c):
+    """ Determines whether nc files are newer than html file
+    """
+    ncfiles = [x for x in os.listdir(c.output_path) if x.endswith('.nc')]
+    html = os.path.join(c.output_path,c.name+'.html')
+    if not os.path.exists(html) or len(ncfiles)==0:
+       return True
+    htmltime = os.path.getmtime(html)
+    for nc in ncfiles:
+       if  os.path.getmtime(os.path.join(c.output_path,nc)) > htmltime:
+          return True
+    return False
+
+def WorkPost(M,C,S,verbose=False,skip_plots=False):
     """Performs the post-processing
 
     Determines plot limits across all models, makes plots, generates
@@ -409,8 +431,6 @@ def WorkPost(M,C,W,S,verbose=False,skip_plots=False):
        list of models to analyze
     C : list of ILAMB.Confrontation.Confrontation
        list of confrontations
-    W : list of (ILAMB.ModelResult.ModelResult, ILAMB.Confrontation.Confrontation) tuples
-        the list of work
     S : ILAMB.Scoreboard.Scoreboard
         the scoreboard context
     verbose : bool, optional
@@ -419,30 +439,26 @@ def WorkPost(M,C,W,S,verbose=False,skip_plots=False):
         enable to skip plotting
     """
     maxCL = 45; maxML = 20
-    for c in C: c.determinePlotLimits()
-    for i,w in enumerate(W):
-        m,c = w
-        try:
-            t0 = time.time()
-            c.modelPlots(m)
-            c.sitePlots(m)
-            c.computeOverallScore(m)
-            dt = time.time()-t0
-            proc[rank] += dt
-            if verbose:
-                dt = datetime.timedelta(seconds=max(1,int(np.round(dt))))
-                print(("    {0:>%d} {1:<%d} %sCompleted%s {2:>8}" % (maxCL,maxML,OK,ENDC)).format(c.longname,m.name,str(dt)))
-                sys.stdout.flush()
-        except Exception as ex:
-            ierr[rank] = 1
-            logger.debug("[%s][%s]\n%s" % (c.longname,m.name,format_exc()))
-            if verbose:
-                print(("    {0:>%d} {1:<%d} %s%s%s" % (maxCL,maxML,FAIL,ex.__class__.__name__,ENDC)).format(c.longname,m.name))
-                sys.stdout.flush()
-
-    sys.stdout.flush(); comm.Barrier()
-    
-    for i,c in enumerate(C):
+    for c in C:
+        c.determinePlotLimits()
+        for m in M:
+            try:
+                t0 = time.time()
+                c.modelPlots(m)
+                c.sitePlots(m)
+                c.computeOverallScore(m)
+                dt = time.time()-t0
+                proc[rank] += dt
+                if verbose:
+                    dt = datetime.timedelta(seconds=max(1,int(np.round(dt))))
+                    print(("    {0:>%d} {1:<%d} %sCompleted%s {2:>8} (%d/%d)" % (maxCL,maxML,OK,ENDC,rank,size)).format(c.longname,m.name,str(dt)))
+                    sys.stdout.flush()
+            except Exception as ex:
+                ierr[rank] = 1
+                logger.debug("[%s][%s]\n%s" % (c.longname,m.name,format_exc()))
+                if verbose:
+                    print(("    {0:>%d} {1:<%d} %s%s%s" % (maxCL,maxML,FAIL,ex.__class__.__name__,ENDC)).format(c.longname,m.name))
+                    sys.stdout.flush()
         try:
             c.compositePlots()
         except Exception as ex:
@@ -568,6 +584,14 @@ parser.add_argument('--model_setup', dest="model_setup", type=str, nargs='+',def
                     help='list files model setup information')
 parser.add_argument('--skip_plots', dest="skip_plots", action="store_true",
                     help='enable to skip the plotting phase')
+parser.add_argument('--skip_confront', dest="skip_confront", action="store_true",
+                    help='enable to skip the confrontation phase')
+parser.add_argument('--skip_scorecard', dest="skip_scorecard", action="store_true",
+                    help='enable to skip the final scorecard construction')
+parser.add_argument('--init_only', dest="init_only", action="store_true",
+                    help='enable to initialise models only')
+parser.add_argument('--reuse_plots', dest='reuse_plots', action="store_true",
+                    help='enable to skip plots if cached files are older than confrontation html')
 parser.add_argument('--rel_only', dest="rel_only", action="store_true",
                     help='enable only display relative differences in overall scores')
 parser.add_argument('--mem_per_pair', dest="mem_per_pair", metavar='MEM', type=float, default=100000.,
@@ -614,6 +638,10 @@ if args.model_setup is None:
                          models_path=args.build_dir[0])
 else:
     M = ParseModelSetup(args.model_setup[0],args.models,not args.quiet,filter=args.filter[0],models_path=args.build_dir[0])
+
+if args.init_only:
+    exit(0)
+
 if rank == 0 and not args.quiet: print("\nParsing config file %s...\n" % args.config[0])
 S = Scoreboard(args.config[0],
                regions   = args.regions,
@@ -661,27 +689,32 @@ C = Cf
 
 sys.stdout.flush(); comm.Barrier()
 
-if rank==0 and not args.quiet: print("\nRunning model-confrontation pairs...\n")
+if not args.skip_confront:
 
-sys.stdout.flush(); comm.Barrier()
-
-W = BuildLocalWorkList(M,C,skip_cache=True)
-WorkConfront(W,not args.quiet,args.clean)
-
-sys.stdout.flush(); comm.Barrier()
+    if rank==0 and not args.quiet: print("\nRunning model-confrontation pairs...\n")
+    sys.stdout.flush(); comm.Barrier()
+    W = BuildLocalWorkList(M,C,skip_cache=True)
+    WorkConfront(W,not args.quiet,args.clean)
+    sys.stdout.flush(); comm.Barrier()
 
 if not args.skip_plots:
     
     if rank==0 and not args.quiet: print("\nFinishing post-processing which requires collectives...\n")
-
+    # loop through confrontations, rateher than worklists. This enables the different htmls to be built incrementally
+    C2 = []
+    for c in C[rank::size]:
+        if not (args.reuse_plots) or bool_rerun_figures(c):
+            C2.append(c)
+#    W = BuildLocalWorkList(M,C2,skip_cache=False)
+    WorkPost(M,C2,S,not args.quiet)
     sys.stdout.flush(); comm.Barrier()
-    
-    W = BuildLocalWorkList(M,C,skip_cache=False)
-    WorkPost(M,C,W,S,not args.quiet)
 
-if rank==0:
-    S.createHtml(M)
-    S.createUDDashboard()
+
+if not args.skip_scorecard:
+    if rank==0 and not args.quiet: print("\nBuilding Scorecard\n")
+    if rank==0:
+        S.createHtml(M)
+        S.createUDDashboard()
 
 sys.stdout.flush(); comm.Barrier()
 
