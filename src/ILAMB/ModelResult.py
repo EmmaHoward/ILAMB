@@ -106,15 +106,24 @@ class ModelResult():
         experiment_id = None
         source_id = None
         for path in paths:
+            filtered = []
             for subdir, dirs, files in os.walk(path,followlinks=True):
                 for fileName in files:
                     if not fileName.endswith(".nc"): continue
                     if self.filter not in fileName: continue
-                    if self.regex is not "":
+                    if self.regex != "":
                         m = re.search(self.regex,fileName)
                         if not m: continue
                     pathName  = os.path.join(subdir,fileName)
+                    filtered.append(pathName)
 
+                for fileName in files:
+                    if not fileName.endswith(".nc"): continue
+                    if self.filter not in fileName: continue
+                    if self.regex != "":
+                        m = re.search(self.regex,fileName)
+                        if not m: continue
+                    pathName  = os.path.join(subdir,fileName)
                     try:
                         dataset = Dataset(pathName)
                     except:
@@ -131,7 +140,7 @@ class ModelResult():
                     for key in dataset.variables.keys():
                         if key not in variables:
                             variables[key] = []
-                        variables[key].append(pathName)
+                        variables[key] += filtered
 
                         v = dataset.variables[key]
                         if key not in names:
@@ -141,6 +150,7 @@ class ModelResult():
                             if "standard_name" in v.ncattrs():
                                 names[key] = v.standard_name
                                 continue
+                    break # if we get here, we have collected the data we need
 
         # modify the description if none exists
         if self.description == "":
