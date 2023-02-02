@@ -464,7 +464,7 @@ def WorkPost(M,C,S,verbose=False,skip_plots=False):
         except Exception as ex:
             ierr[rank] = 1
             logger.debug("[compositePlots][%s]\n%s" % (c.longname,format_exc()))
-        c.generateHtml()
+        c.generateHtml(default_region=args.default_region)
 
     sys.stdout.flush(); comm.Barrier()
 
@@ -590,6 +590,8 @@ parser.add_argument('--skip_scorecard', dest="skip_scorecard", action="store_tru
                     help='enable to skip the final scorecard construction')
 parser.add_argument('--init_only', dest="init_only", action="store_true",
                     help='enable to initialise models only')
+parser.add_argument("--default_region", dest='default_region', type=str,default='global',
+                    help='choose default region for scorecard')
 parser.add_argument('--reuse_plots', dest='reuse_plots', action="store_true",
                     help='enable to skip plots if cached files are older than confrontation html')
 parser.add_argument('--rel_only', dest="rel_only", action="store_true",
@@ -652,7 +654,10 @@ S = Scoreboard(args.config[0],
                rel_only  = args.rel_only,
                mem_per_pair = args.mem_per_pair,
                run_title = args.run_title,
-               rmse_score_basis = args.rmse_score_basis)
+               rmse_score_basis = args.rmse_score_basis,
+               default_region = args.default_region)
+
+print(args.default_region)
 C  = MatchRelationshipConfrontation(S.list())
 if len(args.study_limits) == 2:
     args.study_limits[1] += 1

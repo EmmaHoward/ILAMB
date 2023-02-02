@@ -298,7 +298,7 @@ class HtmlPage(object):
                 except:
                     rname = region
                 opts  = ''
-                if region == "global" or len(self.regions) == 1:
+                if region == self.default_region or len(self.regions) == 1:
                     opts  = ' selected="selected"'
                 code += """
         <option value='%s'%s>%s</option>""" % (region,opts,rname)
@@ -661,7 +661,7 @@ class HtmlAllModelsPage(HtmlPage):
                 except:
                     rname = region
                 opts  = ''
-                if region == "global" or len(self.regions) == 1:
+                if region == self.default_region or len(self.regions) == 1:
                     opts  = ' selected="selected"'
                 code += """
         <option value='%s'%s>%s</option>""" % (region,opts,rname)

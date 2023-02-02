@@ -306,7 +306,7 @@ class Scoreboard():
     """
     A class for managing confrontations
     """
-    def __init__(self,filename,regions=["global"],verbose=False,master=True,build_dir="./_build",extents=None,rel_only=False,mem_per_pair=100000.,run_title="ILAMB",rmse_score_basis="cycle"):
+    def __init__(self,filename,regions=["global"],verbose=False,master=True,build_dir="./_build",extents=None,rel_only=False,mem_per_pair=100000.,run_title="ILAMB",rmse_score_basis="cycle",default_region='global'):
 
         if 'ILAMB_ROOT' not in os.environ:
             raise ValueError("You must set the environment variable 'ILAMB_ROOT'")
@@ -315,6 +315,7 @@ class Scoreboard():
         self.run_title = run_title
         self.regions = regions
         self.rmse_score_basis = rmse_score_basis
+        self.default_region = default_region
         
         if (master and not os.path.isdir(self.build_dir)): os.mkdir(self.build_dir)
 
@@ -621,7 +622,7 @@ class Scoreboard():
             except:
                 rname = region
             opts  = ''
-            if region == "global" or len(self.regions) == 1:
+            if region == self.default_region or len(self.regions) == 1:
                 opts  = ' selected="selected"'
             html += """
           <option value='%s'%s>%s</option>""" % (region,opts,rname)        

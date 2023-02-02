@@ -313,7 +313,6 @@ class Confrontation(object):
             obs.unit = self.override_units
         if obs.time is None: raise il.NotTemporalVariable()
         self.pruneRegions(obs)
-
         # Try to extract a commensurate quantity from the model
         mod = m.extractTimeSeries(self.variable,
                                   alt_vars     = self.alternate_vars,
@@ -893,7 +892,7 @@ class Confrontation(object):
             plt.close()
 
 
-    def generateHtml(self):
+    def generateHtml(self,default_region='global'):
         """Generate the HTML for the results of this confrontation.
 
         This routine opens all netCDF files and builds a table of
@@ -910,6 +909,7 @@ class Confrontation(object):
             # build the metric dictionary
             metrics = {}
             page.models = []
+            page.default_region = default_region
             for fname in glob.glob(os.path.join(self.output_path,"*.nc")):
                 with Dataset(fname) as dataset:
                     mname = dataset.getncattr("name")
