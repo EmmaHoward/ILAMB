@@ -657,7 +657,6 @@ S = Scoreboard(args.config[0],
                rmse_score_basis = args.rmse_score_basis,
                default_region = args.default_region)
 
-print(args.default_region)
 C  = MatchRelationshipConfrontation(S.list())
 if len(args.study_limits) == 2:
     args.study_limits[1] += 1
@@ -698,7 +697,7 @@ if not args.skip_confront:
 
     if rank==0 and not args.quiet: print("\nRunning model-confrontation pairs...\n")
     sys.stdout.flush(); comm.Barrier()
-    W = BuildLocalWorkList(M,C,skip_cache=True)
+    W = BuildLocalWorkList(M,C,skip_cache=not args.clean)
     WorkConfront(W,not args.quiet,args.clean)
     sys.stdout.flush(); comm.Barrier()
 

@@ -315,7 +315,6 @@ class Variable:
         t0   = keywords.get("t0",self.time_bnds[:,0].min())
         tf   = keywords.get("tf",self.time_bnds[:,1].max())
         mean = keywords.get("mean",False)
-
         # find which time bounds are included even partially in the interval [t0,tf]
         time_bnds = np.copy(self.time_bnds)
         ind       = np.where((t0<time_bnds[:,1])*(tf>time_bnds[:,0]))[0]

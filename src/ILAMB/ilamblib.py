@@ -1764,7 +1764,7 @@ def MakeComparable(ref,com,**keywords):
     logstring   = keywords.get("logstring","")
     prune_sites = keywords.get("prune_sites",False)
     site_atol   = keywords.get("site_atol",0.25)
-    allow_diff_times = keywords.get("allow_diff_times",True)
+    allow_diff_times = keywords.get("allow_diff_times",False)
     # If one variable is temporal, then they both must be
     if ref.temporal != com.temporal:
         msg  = "%s Datasets are not uniformly temporal: " % logstring
@@ -1889,24 +1889,24 @@ def MakeComparable(ref,com,**keywords):
 
         ## Find the comparison time range which fully encompasses the reference
         # EH: clip to same-length time periods
-        if allow_diff_times:
-            n = min(ref.time.size,com.time.size)-1
-            t0 = com.time_bnds[0,0]
-            tf = com.time_bnds[n,1]
-            com = ClipTime(com,t0,tf) # orig
-            if clip_ref:
-                t0 = ref.time_bnds[0,0]
-                tf = ref.time_bnds[n,1]
-                ref = ref.trim(t=[t0,tf])
+        #if allow_diff_times:
+        #    n = min(ref.time.size,com.time.size)-1
+        #    t0 = com.time_bnds[0,0]
+        #    tf = com.time_bnds[n,1]
+        #    com = ClipTime(com,t0,tf) # orig
+        #    if clip_ref:
+        #        t0 = ref.time_bnds[0,0]
+        #        tf = ref.time_bnds[n,1]
+        #        ref = ref.trim(t=[t0,tf])
 
-        else:
-            com = ClipTime(com,t0,tf)
-            if clip_ref:
+        #else:
+        com = ClipTime(com,t0,tf)
+        if clip_ref:
 
                 # We will clip the reference dataset too
-                t0  = max(t0,com.time_bnds[ 0,0])
-                tf  = min(tf,com.time_bnds[-1,1])
-                ref = ref.trim(t=[t0,tf])
+            t0  = max(t0,com.time_bnds[ 0,0])
+            tf  = min(tf,com.time_bnds[-1,1])
+            ref = ref.trim(t=[t0,tf])
         
         # Check that we now are on the same time intervals
             if ref.time.size != com.time.size:
