@@ -124,6 +124,7 @@ class ModelResult():
                         m = re.search(self.regex,fileName)
                         if not m: continue
                     pathName  = os.path.join(subdir,fileName)
+                    #print("checking %s"%pathName)
                     try:
                         dataset = Dataset(pathName)
                     except:
@@ -169,20 +170,26 @@ class ModelResult():
         for key in lats:
             for pathName in variables[key]:
                 with Dataset(pathName) as dset:
-                    lat = dset.variables[key][...]
-                    if lat.size == 1: continue
-                    self.extents[0,0] = max(self.extents[0,0],lat.min())
-                    self.extents[0,1] = min(self.extents[0,1],lat.max())
+                   try:
+                       lat = dset.variables[key][...]
+                       if lat.size == 1: continue
+                       self.extents[0,0] = max(self.extents[0,0],lat.min())
+                       self.extents[0,1] = min(self.extents[0,1],lat.max())
+                   except KeyError:
+                       pass
         for key in lons:
             for pathName in variables[key]:
                 with Dataset(pathName) as dset:
-                    lon = dset.variables[key][...]
-                    if lon.size == 1: continue
-                    if lon.ndim < 1 or lon.ndim > 2: continue
-                    lon = (lon>=0)*lon + (lon<0)*(lon+360) + (lon<-180)*360
-                    self.extents[1,0] = max(self.extents[1,0],lon.min())
-                    self.extents[1,1] = min(self.extents[1,1],lon.max())
-
+                   try:
+                        lon = dset.variables[key][...]
+                        if lon.size == 1: continue
+                        if lon.ndim < 1 or lon.ndim > 2: continue
+                        lon = (lon>=0)*lon + (lon<0)*(lon+360) + (lon<-180)*360
+                        self.extents[1,0] = max(self.extents[1,0],lon.min())
+                        self.extents[1,1] = min(self.extents[1,1],lon.max())
+                   except KeyError:
+                       pass
+ 
         # fix extents
         eps = 5.
         if self.extents[0,0] < (- 90.+eps): self.extents[0,0] = - 90.
