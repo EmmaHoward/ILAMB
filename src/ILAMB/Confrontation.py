@@ -1024,7 +1024,7 @@ class Confrontation(object):
                 # create relationships
                 ref = Relationship(ref_ind,ref_dep,order=1)
                 com = Relationship(com_ind,com_dep,order=1)
-
+                """
                 # set limits to global across models
                 ref.limits = ([self.limits["timeint"]['global']["min"],
                                self.limits["timeint"]['global']["max"]],
@@ -1035,6 +1035,7 @@ class Confrontation(object):
                               [   c.limits["timeint"]['global']["min"],
                                   c.limits["timeint"]['global']["max"]])
 
+                """
                 # Add figures to the html page
                 page.addFigure(c.longname,
                                "benchmark_rel_%s"            % ind_name,

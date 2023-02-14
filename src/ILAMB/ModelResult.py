@@ -106,8 +106,8 @@ class ModelResult():
         experiment_id = None
         source_id = None
         for path in paths:
-            filtered = []
             for subdir, dirs, files in os.walk(path,followlinks=True):
+                filtered = []
                 for fileName in files:
                     if not fileName.endswith(".nc"): continue
                     if self.filter not in fileName: continue
@@ -170,25 +170,19 @@ class ModelResult():
         for key in lats:
             for pathName in variables[key]:
                 with Dataset(pathName) as dset:
-                   try:
-                       lat = dset.variables[key][...]
-                       if lat.size == 1: continue
-                       self.extents[0,0] = max(self.extents[0,0],lat.min())
-                       self.extents[0,1] = min(self.extents[0,1],lat.max())
-                   except KeyError:
-                       pass
+                    lat = dset.variables[key][...]
+                    if lat.size == 1: continue
+                    self.extents[0,0] = max(self.extents[0,0],lat.min())
+                    self.extents[0,1] = min(self.extents[0,1],lat.max())
         for key in lons:
             for pathName in variables[key]:
                 with Dataset(pathName) as dset:
-                   try:
-                        lon = dset.variables[key][...]
-                        if lon.size == 1: continue
-                        if lon.ndim < 1 or lon.ndim > 2: continue
-                        lon = (lon>=0)*lon + (lon<0)*(lon+360) + (lon<-180)*360
-                        self.extents[1,0] = max(self.extents[1,0],lon.min())
-                        self.extents[1,1] = min(self.extents[1,1],lon.max())
-                   except KeyError:
-                       pass
+                    lon = dset.variables[key][...]
+                    if lon.size == 1: continue
+                    if lon.ndim < 1 or lon.ndim > 2: continue
+                    lon = (lon>=0)*lon + (lon<0)*(lon+360) + (lon<-180)*360
+                    self.extents[1,0] = max(self.extents[1,0],lon.min())
+                    self.extents[1,1] = min(self.extents[1,1],lon.max())
  
         # fix extents
         eps = 5.

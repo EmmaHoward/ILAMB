@@ -167,14 +167,16 @@ class Relationship(object):
         """
         dep = self.dep
         ind = self.ind
-        dep_lim = self.limits[0]
-        ind_lim = self.limits[1]
+#        dep_lim = self.limits[0]
+#        ind_lim = self.limits[1]
         
         # Mask data
         mask = ind.data.mask + dep.data.mask
         if region is not None: mask += Regions().getMask(region,ind)
         x = ind.data[mask==False].flatten()
         y = dep.data[mask==False].flatten()
+        ind_lim = [x.min(),x.max()]
+        dep_lim = [y.min(),y.max()]
         xedges = nbin
         yedges = nbin
         if self.ind_log:

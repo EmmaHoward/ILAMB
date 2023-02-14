@@ -61,7 +61,6 @@ def InitializeModels(model_root,models=[],verbose=False,filter="",regex="",model
     if len(model_year) != 2: model_year = None
     max_model_name_len = 0
     if rank == 0 and verbose: print("\nSearching for model results in %s\n" % model_root)
-    print('at barrier: %d'%rank)
     comm.Barrier()
     for subdir, dirs, files in os.walk(model_root):
         for mname in dirs[rank::size]: 
@@ -80,16 +79,18 @@ def InitializeModels(model_root,models=[],verbose=False,filter="",regex="",model
             M.append(m)
             max_model_name_len = max(max_model_name_len,len(mname))
         break
-    print('at barrier: %d'%rank)
-    comm.Barrier()
-    M = comm.gather(M,root=0)
-    max_model_name_len = comm.gather(max_model_name_len,root=0)
-    if rank==0:
-        max_model_name_len = max(max_model_name_len)
-        M = [item for sublist in M for item in sublist]
+    print('Complete: processor %d'%rank)
+    if size > 1:
+        comm.Barrier()
+        M = comm.gather(M,root=0)
+        max_model_name_len = comm.gather(max_model_name_len,root=0)
+        if rank==0:
+            max_model_name_len = max(max_model_name_len)
+            M = [item for sublist in M for item in sublist]
+            M = sorted(M,key=lambda m: m.name.upper())
+        M = comm.scatter([M for i in range(size)],root=0)
+    else:
         M = sorted(M,key=lambda m: m.name.upper())
-
-    M = comm.scatter([M for i in range(size)],root=0)
     # assign unique colors
     clrs = il.GenerateDistinctColors(len(M))
     for m in M:

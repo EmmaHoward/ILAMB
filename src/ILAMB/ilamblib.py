@@ -120,8 +120,10 @@ def GenerateDistinctColors(N,saturation=0.67,value=0.67):
        list of N distinct RGB tuples
     """
     from colorsys import hsv_to_rgb
-    HSV_tuples = [(x/float(N), saturation, value) for x in range(N)]
-    RGB_tuples = list(map(lambda x: hsv_to_rgb(*x), HSV_tuples))
+    from matplotlib.cm import get_cmap
+#    HSV_tuples = [(x/float(N), saturation, value) for x in range(N)]
+#    RGB_tuples = list(map(lambda x: hsv_to_rgb(*x), HSV_tuples))
+    RGB_tuples = [get_cmap('gist_rainbow')(i)[:3] for i in np.linspace(0,1,N)]
     return RGB_tuples
 
 def GuessAlpha(t):
@@ -1882,6 +1884,13 @@ def MakeComparable(ref,com,**keywords):
         # comparison, coarsen the comparison
         if np.log10(ref.dt/com.dt) > 0.5:
             com = com.coarsenInTime(ref.time_bnds,window=window)
+        elif np.log10(com.dt/ref.dt) > 0.5:
+            msg  = "%s Reference data was coarsened\n: " % logstring
+            msg += " dt before: %s" % (ref.dt)
+            ref  = ref.coarsenInTime(com.time_bnds,window=window)
+            msg += " dt after: %s" % (ref.dt)
+            logger.info(msg)
+
 
         # Time bounds of the reference dataset
         t0  = ref.time_bnds[ 0,0]
@@ -1914,14 +1923,35 @@ def MakeComparable(ref,com,**keywords):
                 # Special case - it frequently works out that we are 1
                 # time interval off for some reason. For now, we will
                 # detect this and push a fix.
+                raise_error = True
                 if ref.time.size == (com.time.size+1):
 
-                    if(np.abs(com.time[0]-ref.time[1])/(ref.time_bnds[0,1]-ref.time_bnds[0,0])<1e-2):
+                    if(np.abs(com.time[0]-ref.time[1])/(ref.time_bnds[0,1]-ref.time_bnds[0,0])<1e-1):
                         ref.time = ref.time[1:]
                         ref.time_bnds = ref.time_bnds[1:]
                         ref.data = ref.data[1:]
+                        raise_error = False
 
-                else:
+                    elif(np.abs(com.time[0]-ref.time[0])/(ref.time_bnds[0,1]-ref.time_bnds[0,0])<1e-1):
+                        ref.time = ref.time[:-1]
+                        ref.time_bnds = ref.time_bnds[:-1]
+                        ref.data = ref.data[:-1]
+                        raise_error = False
+ 
+                if com.time.size == (ref.time.size+1):
+
+                    if(np.abs(com.time[1]-ref.time[0])/(ref.time_bnds[0,1]-ref.time_bnds[0,0])<1e-1):
+                        com.time = com.time[1:]
+                        com.time_bnds = com.time_bnds[1:]
+                        com.data = com.data[1:]
+                        raise_error = False
+
+                    elif(np.abs(com.time[0]-ref.time[0])/(ref.time_bnds[0,1]-ref.time_bnds[0,0])<1e-1):
+                        com.time = com.time[:-1]
+                        com.time_bnds = com.time_bnds[:-1]
+                        com.data = com.data[:-1]
+                        raise_error = False
+                if raise_error:
                     msg  = "%s Datasets have differing numbers of time intervals: " % logstring
                     msg += "reference = %d, comparison = %d" % (ref.time.size,com.time.size)
                     logger.debug(msg)
